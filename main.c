@@ -157,6 +157,9 @@ int main(int argc, char *argv[])
     }
     while (now >= (BUFFER_SIZE / (dec->sample_size * dec->channels)));
 
+    if (ao->unload != NULL)
+        ao->unload();
+
     printf("\n");
 
     return 0;

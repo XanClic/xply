@@ -20,70 +20,60 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************/
 
-#ifndef PLAYER_H
-#define PLAYER_H
-
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
+#include <vfs.h>
 
-enum sample_type
+#include <drv/audio.h>
+
+#include "player.h"
+
+static pipe mixer;
+static size_t frame_size;
+
+static bool prepare(int sample_rate, int channels, enum sample_type sample_type __attribute__((unused)), int sample_size)
 {
-    ST_SIGNED_INTEGER_LE = 0
+    mixer = create_pipe("(mixer)/", O_WRONLY);
+
+    if (mixer == NULL)
+        return false;
+
+    if (!pipe_set_flag(mixer, O_AUDIO_CHANNELS, channels))
+        return false;
+
+    if (!pipe_set_flag(mixer, O_AUDIO_SAMPLERATE, sample_rate))
+        return false;
+
+    frame_size = channels * sample_size;
+
+    return true;
+}
+
+static void unload(void)
+{
+    destroy_pipe(mixer, 0);
+}
+
+static void play(void *buffer, size_t frames)
+{
+    stream_send(mixer, buffer, frames * frame_size, 0);
+}
+
+static void wait4buf(size_t frames)
+{
+    // kaputt, aber tut hoffentlich
+    while (pipe_get_flag(mixer, O_AUDIO_BUFFER_CONTENT) > (frames * frame_size + BUFFER_SIZE))
+        msleep(10);
+}
+
+static const struct output_device p35 = {
+    .name = "p35",
+    .description = "Sound output on paloxena3.5 via (mixer).",
+    .prepare = &prepare,
+    .unload = &unload,
+    .play = &play,
+    .wait_until_buffer_below = &wait4buf
 };
 
-struct output_device
-{
-    const char *name;
-    const char *description;
-
-    bool (*prepare)(int sample_rate, int channels, enum sample_type sample_type, int sample_size);
-    void (*unload)(void);
-    void (*play)(void *buffer, size_t frames);
-    void (*wait_until_buffer_below)(size_t frames);
-};
-
-struct file_type;
-
-struct decoder
-{
-    const char *name;
-
-    bool (*check_file)(FILE *fp, struct file_type **ft);
-    size_t (*decode)(struct file_type *ft, size_t frames, void *buffer);
-};
-
-struct file_type
-{
-    const struct decoder *decoder;
-
-    int sample_rate;
-    int channels;
-    size_t sample_size;
-    enum sample_type sample_type;
-    double bitrate;
-
-    size_t position;
-    size_t length;
-};
-
-
-#ifndef __GLUE
-#define __GLUE(a, b) a ## b
-#endif
-
-#define __DEFINE_AO(ao_struct, cnt) static const struct output_device *__attribute__((section("ao"), used)) __GLUE(__ao_, cnt) = ao_struct;
-#define DEFINE_AO(ao_struct) __DEFINE_AO(ao_struct, __COUNTER__)
-
-#define __DEFINE_DC(dc_struct, cnt) static const struct decoder *__attribute__((section("dc"), used)) __GLUE(__dec_, cnt) = dc_struct;
-#define DEFINE_DC(dc_struct) __DEFINE_DC(dc_struct, __COUNTER__)
-
-
-#define BUFFER_SIZE 32768
-
-
-const struct output_device *find_output_device(const char *name);
-struct file_type *get_file_type(FILE *fp);
-
-#endif
+DEFINE_AO(&p35)
 
