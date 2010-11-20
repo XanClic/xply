@@ -121,6 +121,7 @@ static void wait4buf(size_t frames)
 
 static const struct output_device sdl = {
     .name = "sdl",
+    .description = "Outputs sound via SDL_Audio.",
     .prepare = &prepare,
     .play = &play,
     .wait_until_buffer_below = &wait4buf

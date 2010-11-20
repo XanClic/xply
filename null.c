@@ -42,6 +42,7 @@ static void wait4buf(size_t frames unused)
 
 static const struct output_device null = {
     .name = "null",
+    .description = "Discards all output data.",
     .prepare = &prepare,
     .play = &play,
     .wait_until_buffer_below = &wait4buf
