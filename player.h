@@ -35,6 +35,7 @@ enum sample_type
 struct output_device
 {
     const char *name;
+    const char *description;
 
     bool (*prepare)(int sample_rate, int channels, enum sample_type sample_type, int sample_size);
     void (*play)(void *buffer, size_t frames);

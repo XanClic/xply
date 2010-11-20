@@ -28,7 +28,7 @@
 
 #include "player.h"
 
-#define DEFAULT_OUTPUT_DEVICE "pal35"
+#define DEFAULT_OUTPUT_DEVICE "sdl"
 
 static const char *stn1[] = {
     "s"
@@ -46,6 +46,7 @@ static void help(int exitcode)
     printf("file: Input file name\n");
     printf("Options:\n");
     printf("  -ao <name>: Changes the audio output device (default is " DEFAULT_OUTPUT_DEVICE ").\n");
+    printf("              (use -ao list to list the available devices).\n");
 
     exit(exitcode);
 }
@@ -90,21 +91,22 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (input_file == NULL)
-    {
-        fprintf(stderr, "%s: Input file required.\n", argv[0]);
-        help(1);
-    }
-
 
     const struct output_device *ao = find_output_device(output_device);
 
     if (ao == NULL)
     {
-        fprintf(stderr, "%s: No such output device \"%s\".\n", argv[0], output_device);
+        if (strcmp(output_device, "list"))
+            fprintf(stderr, "%s: No such output device \"%s\".\n", argv[0], output_device);
         return 1;
     }
 
+
+    if (input_file == NULL)
+    {
+        fprintf(stderr, "%s: Input file required.\n", argv[0]);
+        help(1);
+    }
 
     FILE *ifp = fopen(input_file, "r");
 
