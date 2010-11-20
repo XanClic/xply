@@ -65,7 +65,7 @@ static bool is_vorbis(FILE *fp, struct file_type **ft)
     return true;
 }
 
-static size_t decode(struct file_type *ft , size_t out_frames, void *out_buf)
+static size_t decode(struct file_type *ft, size_t out_frames, void *out_buf)
 {
     struct vorbis_format *fmt = (struct vorbis_format *)ft;
     int sum = 0, now = 1024;
