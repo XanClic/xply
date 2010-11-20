@@ -1,5 +1,5 @@
 DECODERS = ogg-vorbis riff-wave
-OUTPUT = sdl
+OUTPUT = null sdl
 
 ADDLIBS = -lvorbisfile -lvorbis -logg -lm `sdl-config --libs`
 ADDCFGS = `sdl-config --cflags`

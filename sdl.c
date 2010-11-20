@@ -23,6 +23,7 @@
 #define _BSD_SOURCE
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -103,14 +104,14 @@ static bool prepare(int sample_rate, int channels, enum sample_type sample_type,
     return true;
 }
 
-void play(void *buffer, size_t frames)
+static void play(void *buffer, size_t frames)
 {
     memcpy(sdl_buf[!cpb], buffer, frames * frame_size);
     buffer_offset[!cpb] = 0;
     buffer_remaining[!cpb] = frames * frame_size;
 }
 
-void wait4buf(size_t frames)
+static void wait4buf(size_t frames)
 {
     frames *= frame_size;
 
