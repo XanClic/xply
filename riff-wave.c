@@ -49,6 +49,7 @@ struct wave_format
     size_t size;
     size_t pos;
     int bytes_per_second;
+    FILE *fp;
 };
 
 
@@ -84,9 +85,7 @@ static bool is_wave(FILE *fp, struct file_type **ft)
                 ((wav_fmt.channels != 1) &&
                  (wav_fmt.channels != 2)) ||
                 ((wav_fmt.bits_per_sample != 8) &&
-                 (wav_fmt.bits_per_sample != 16) &&
-                 (wav_fmt.bits_per_sample != 24) &&
-                 (wav_fmt.bits_per_sample != 32)))
+                 (wav_fmt.bits_per_sample != 16)))
             {
                 fseek(fp, pos, SEEK_SET);
                 return false;
@@ -124,208 +123,40 @@ static bool is_wave(FILE *fp, struct file_type **ft)
     fmt->ft.channels = wav_fmt.channels;
     fmt->ft.position = 0;
     fmt->ft.length = ifsize / wav_fmt.bytes_per_second;
-    fmt->ft.sample_rate = (double)wav_fmt.sample_rate / 1000.;
+    fmt->ft.sample_rate = wav_fmt.sample_rate;
     fmt->ft.sample_size = wav_fmt.bits_per_sample / 8;
     fmt->ft.sample_type = ST_SIGNED_INTEGER_LE;
+    fmt->ft.bitrate = (double)wav_fmt.bytes_per_second / 250.;
     fmt->size = ifsize;
     fmt->pos = 0;
     fmt->bytes_per_second = wav_fmt.bytes_per_second;
+    fmt->fp = fp;
 
     return true;
 }
 
-#if 0
-static size_t wave2raw(FILE* fp, void* format_inf, size_t out_frames, void* out_buf)
+static size_t decode(struct file_type *ft, size_t out_frames, void *out_buf)
 {
-    struct wave_format* fmt = format_inf;
+    struct wave_format *fmt = (struct wave_format *)ft;
     size_t now;
-    void* tbuf;
-#ifndef USE_INLINE_ASM
-    size_t count;
-    uint8_t* i8buf;
-    uint16_t* ibuf;
-    uint32_t* i32buf;
-    uint16_t* obuf;
-#endif
 
-    //TODO Resamplen
-
-    now = fmt->size / (fmt->channels * (fmt->bits_per_sample >> 3));
-    if (now > out_frames) {
+    now = fmt->size / (ft->channels * ft->sample_size);
+    if (now > out_frames)
         now = out_frames;
-    }
 
-    if ((fmt->channels == 2) && (fmt->bits_per_sample == 16)) {
-        fread(out_buf, 4, now, fp);
-        fmt->size -= now * 4;
-        fmt->pos += now * 4;
-    } else if ((fmt->channels == 1) && (fmt->bits_per_sample == 16)) {
-        tbuf = calloc(now, 2);
-        fread(tbuf, 2, now, fp);
-        fmt->size -= now * 2;
-        fmt->pos += now * 2;
+    fread(out_buf, ft->channels * ft->sample_size, now, fmt->fp);
+    fmt->size -= now * ft->channels * ft->sample_size;
+    fmt->pos  += now * ft->channels * ft->sample_size;
 
-#ifdef USE_INLINE_ASM
-        __asm__ __volatile__ (".blow_up_to_two:"
-                "lodsw;"
-                "stosw;"
-                "stosw;"
-                "loop .blow_up_to_two"::"c"(now),"S"(tbuf),"D"(out_buf));
-#else
-        count = now;
-        ibuf = tbuf;
-        obuf = out_buf;
-        while (count--) {
-            *(obuf++) = *ibuf;
-            *(obuf++) = *(ibuf++);
-        }
-#endif
-
-        free(tbuf);
-    } else if (fmt->channels == 2) {
-        tbuf = calloc(now, fmt->bits_per_sample >> 2);
-        fread(tbuf, fmt->bits_per_sample >> 2, now, fp);
-        fmt->size -= now * (fmt->bits_per_sample >> 2);
-        fmt->pos += now * (fmt->bits_per_sample >> 2);
-        switch (fmt->bits_per_sample)
-        {
-            case 8:
-#ifdef USE_INLINE_ASM
-                __asm__ __volatile__ (".from_2_8:"
-                        "xor %%eax,%%eax;"
-                        "lodsb;"
-                        "shl $7,%%eax;" //Bitte *nicht* fragen, warum nicht $8
-                        "stosw;"
-                        "loop .from_2_8"::"c"(now * 2),"S"(tbuf),"D"(out_buf));
-#else
-                count = now * 2;
-                i8buf = tbuf;
-                obuf = out_buf;
-                while (count--) {
-                    *(obuf++) = *(i8buf++) << 7;
-                }
-#endif
-                break;
-            case 24:
-#ifdef USE_INLINE_ASM
-                __asm__ __volatile__ (".from_2_24:"
-                        "lodsb;"
-                        "lodsw;"
-                        "stosw;"
-                        "loop .from_2_24"
-                        ::"c"(now * 2),"S"(tbuf),"D"(out_buf));
-#else
-                count = now * 2;
-                i8buf = tbuf;
-                obuf = out_buf;
-                i8buf -= 2;
-                while (count--) {
-                    i8buf += 3;
-                    *(obuf++) = i8buf[0] | (i8buf[1] << 8);
-                }
-#endif
-                break;
-            case 32:
-                //Gibts eigentlich gar nicht. Aber warum nicht? Dann ist das
-                //eben der einzige Player mit RIFF-WAVE-PCM-32-Bit-Unter-
-                //stützung. Wow.
-#ifdef USE_INLINE_ASM
-                __asm__ __volatile__ (".from_2_32:"
-                        "lodsl;"
-                        "shr $16,%%eax;"
-                        "stosw;"
-                        "loop .from_2_32"
-                        ::"c"(now * 2),"S"(tbuf),"D"(out_buf));
-#else
-                count = now * 2;
-                i32buf = tbuf;
-                obuf = out_buf;
-                while (count--) {
-                    *(obuf++) = *(i32buf++) >> 16;
-                }
-#endif
-                break;
-        }
-        free(tbuf);
-    }
-    else if (fmt->channels == 1)
-    {
-        tbuf = calloc(now, fmt->bits_per_sample >> 3);
-        fread(tbuf, fmt->bits_per_sample >> 3, now, fp);
-        fmt->size -= now * (fmt->bits_per_sample >> 3);
-        fmt->pos += now * (fmt->bits_per_sample >> 3);
-        switch (fmt->bits_per_sample)
-        {
-            case 8:
-#ifdef USE_INLINE_ASM
-                __asm__ __volatile__ (".from_1_8:"
-                        "xor %%eax,%%eax;"
-                        "lodsb;"
-                        "shl $7,%%eax;" //Bitte *nicht* fragen, warum nicht $8
-                        "stosw;"
-                        "stosw;"
-                        "loop .from_1_8"::"c"(now),"S"(tbuf),"D"(out_buf));
-#else
-                count = now;
-                i8buf = tbuf;
-                obuf = out_buf;
-                while (count--) {
-                    *(obuf++) = *(i8buf) << 7;
-                    *(obuf++) = *(i8buf++) << 7;
-                }
-#endif
-                break;
-            case 24:
-#ifdef USE_INLINE_ASM
-                __asm__ __volatile__ (".from_1_24:"
-                        "lodsb;"
-                        "lodsw;"
-                        "stosw;"
-                        "stosw;"
-                        "loop .from_1_24"::"c"(now),"S"(tbuf),"D"(out_buf));
-#else
-                count = now;
-                i8buf = tbuf;
-                obuf = out_buf;
-                i8buf -= 2;
-                while (count--) {
-                    i8buf += 3;
-                    *(obuf++) = i8buf[0] | (i8buf[1] << 8);
-                    *(obuf++) = i8buf[0] | (i8buf[1] << 8);
-                }
-#endif
-                break;
-            case 32:
-#ifdef USE_INLINE_ASM
-                __asm__ __volatile__ (".from_1_32:"
-                        "lodsl;"
-                        "shr $16,%%eax;"
-                        "stosw;"
-                        "stosw;"
-                        "loop .from_1_32"::"c"(now),"S"(tbuf),"D"(out_buf));
-#else
-                count = now;
-                i32buf = tbuf;
-                obuf = out_buf;
-                while (count--) {
-                    *(obuf++) = *i32buf >> 16;
-                    *(obuf++) = *(i32buf++) >> 16;
-                }
-#endif
-                break;
-        }
-        free(tbuf);
-    }
-
-    fmt->gen.position = fmt->pos / fmt->bytes_per_second;
+    ft->position = fmt->pos / fmt->bytes_per_second;
 
     return now;
 }
-#endif
 
 static const struct decoder wave = {
     .name = "RIFF WAVE",
-    .check_file = &is_wave
+    .check_file = &is_wave,
+    .decode = &decode
 };
 
 DEFINE_DC(&wave)
