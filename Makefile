@@ -1,7 +1,7 @@
-DECODERS = ogg-vorbis riff-wave
+DECODERS = ogg-vorbis riff-wave mp3
 OUTPUT = null sdl
 
-ADDLIBS = -lvorbisfile -lvorbis -logg -lm `sdl-config --libs`
+ADDLIBS = -lvorbisfile -lvorbis -logg -lmpg123 -lm `sdl-config --libs`
 ADDCFGS = `sdl-config --cflags`
 
 MCFLAGS = $(CFLAGS) -O3 -std=gnu99 -Wall -Wextra -pedantic
