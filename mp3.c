@@ -41,7 +41,7 @@ static bool is_mp3(FILE *fp, struct file_type **ft)
     mpg123_init();
 
     int err;
-    mpg123_handle *mh = mpg123_new("generic", &err);
+    mpg123_handle *mh = mpg123_new(NULL, &err);
 
     if (mh == NULL)
     {
