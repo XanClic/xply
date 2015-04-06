@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************/
 
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 
 #include <stdbool.h>
 #include <stddef.h>
