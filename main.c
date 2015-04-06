@@ -26,9 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
 #include "player.h"
-
-#define DEFAULT_OUTPUT_DEVICE "sdl"
 
 static const char *stn1[] = {
     "s"
