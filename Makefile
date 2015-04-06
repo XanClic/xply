@@ -1,8 +1,21 @@
 DECODERS = ogg-vorbis riff-wave mp3
 OUTPUT = null sdl
 
-ADDLIBS = -lvorbisfile -lvorbis -logg -lmpg123 -lm `sdl-config --libs`
-ADDCFGS = `sdl-config --cflags`
+ADDLIBS =
+ADDCFGS =
+
+ifneq (,$(findstring ogg-vorbis,$(DECODERS)))
+    ADDLIBS += -lvorbisfile -lvorbis -logg -lm
+endif
+
+ifneq (,$(findstring mp3,$(DECODERS)))
+    ADDLIBS += -lmpg123
+endif
+
+ifneq (,$(findstring sdl,$(OUTPUT)))
+    ADDLIBS += -lvorbisfile -lvorbis -logg -lmpg123 -lm `sdl-config --libs`
+    ADDCFGS += `sdl-config --cflags`
+endif
 
 MCFLAGS = $(CFLAGS) -O3 -std=gnu99 -Wall -Wextra -pedantic
 
