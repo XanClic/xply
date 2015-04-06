@@ -34,12 +34,23 @@ all: xply
 xply: main.o interface.o $(addsuffix .o,$(DECODERS) $(OUTPUT))
 	$(B_CC) $@ $^ $(LINKFLAGS) $(ADDLIBS)
 
-%.o: %.c player.h
+%.o: %.c player.h config.h
 	$(O_CC) $@ $< $(MCFLAGS) $(ADDCFGS)
+
+config.h:
+ifneq (,$(findstring sdl,$(OUTPUT)))
+	echo '#define DEFAULT_OUTPUT_DEVICE "sdl"' > config.h
+else
+    ifneq (,$(findstring tyn,$(OUTPUT)))
+	echo '#define DEFAULT_OUTPUT_DEVICE "tyndur"' > config.h
+    else
+	echo '#define DEFAULT_OUTPUT_DEVICE "null"' > config.h
+    endif
+endif
 
 install:
 	$(CPTH) $(INSTALL_TO)/bin
 	$(COPY) xply $(INSTALL_TO)/bin
 
 clean:
-	$(RMFF) *.o xply
+	$(RMFF) *.o xply config.h
